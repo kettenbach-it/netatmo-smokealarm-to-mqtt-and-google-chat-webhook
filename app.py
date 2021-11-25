@@ -2,10 +2,11 @@ import os
 
 from flask import Flask, request
 
-from netatmo import Netatmo
+from netatmo import Netatmo, Event
 
 try:
     # Netatmo https://dev.netatmo.com/apidocumentation/oauth#client-credential
+    # https://dev.netatmo.com/apps/6195e6e5463afd042d48c90a#form
     # The URL this API is listening on (needed to install webhook)
     MY_URL = os.environ['MY_URL']
     CLIENT_ID = os.environ['CLIENT_ID']
@@ -41,7 +42,7 @@ def get_root():
 @app.route('/', methods=['POST'])
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    print(request.json)
+    event = Event(request.json)
     return "", 200
 
 

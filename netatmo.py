@@ -1,6 +1,10 @@
 import datetime
+import json
+import os
 
 import requests
+
+DEVICEMAP = json.loads(os.environ.get("DEVICEMAP"))
 
 
 class Token:
@@ -64,6 +68,7 @@ class Netatmo:
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
                 "grant_type": "password",
+                "scope": "read_smokedetector",
                 "username": self.username,
                 "password": self.password
             }).json()
@@ -78,7 +83,58 @@ class Netatmo:
 
     def _add_webhook(self, url: str):
         self.url = url
-        js = requests.get("https://api.netatmo.com/api/addwebhook?url=%s/webhook" % url,
-                          headers={'Authorization': 'Bearer ' + self.get_token().access_token}).json()
-        if js["status"] != "ok":
-            print("Error setting webhook!")
+        request = requests.get("https://api.netatmo.com/api/addwebhook?url=%s/webhook" % url,
+                          headers={'Authorization': 'Bearer ' + self.get_token().access_token})
+        if request.status_code != 200:
+            print("Error setting webhook! " + request.json())
+        else:
+            js = request.json()
+            if js["status"] != "ok":
+                print("Error setting webhook!")
+
+
+class Event:
+    push_type: str
+    user_id: str
+    user_email: str
+
+    event_type: str
+    device_id: str
+    home_id: str
+    home_name: str
+    camera_id: str
+    event_id: str
+    sub_type: str
+
+    device_name: str
+
+    def __str__(self):
+        return self.push_type + " (" + self.event_type + ") from " + self.device_name + "@" + self.home_name
+
+    def __init__(self, js: json):
+        # print(js)
+        if "push_type" in js:
+            self.push_type = js["push_type"]
+            self.user_id = js["user_id"]
+            if js["push_type"] == "webhook_activation":
+                self.user_email = js ["user"]["email"]
+                print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
+                print("Webhook activated for user %s " % self.user_email)
+            else:
+                self.event_type = js["event_type"]
+                self.device_id = js["device_id"]
+                self.home_id = js["home_id"]
+                self.home_name = js["home_name"]
+                self.camera_id = js["camera_id"]
+                self.event_id = js["event_id"]
+                self.sub_type = js["sub_type"]
+                if self.device_id in DEVICEMAP:
+                    self.device_name = DEVICEMAP[self.device_id]
+                else:
+                    self.device_name = self.device_id
+                print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
+                print("Event received: %s" % self)
+
+
+
+
