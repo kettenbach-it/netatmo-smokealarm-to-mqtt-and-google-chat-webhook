@@ -84,7 +84,7 @@ class Netatmo:
     def _add_webhook(self, url: str):
         self.url = url
         request = requests.get("https://api.netatmo.com/api/addwebhook?url=%s/webhook" % url,
-                          headers={'Authorization': 'Bearer ' + self.get_token().access_token})
+                               headers={'Authorization': 'Bearer ' + self.get_token().access_token})
         if request.status_code != 200:
             print("Error setting webhook! " + request.json())
         else:
@@ -94,40 +94,107 @@ class Netatmo:
 
 
 class Event:
-    push_type: str
-    user_id: str
-    user_email: str
+    """
+    https://dev.netatmo.com/apidocumentation/security#events
 
-    event_type: str
-    device_id: str
-    home_id: str
-    home_name: str
-    camera_id: str
-    event_id: str
-    sub_type: str
+    hush - Smoke Detector - When the smoke detection is activated or deactivated
+    smoke - Smoke Detector - When smoke is detected or smoke is cleared
+    tampered - Smoke Detector - When smoke detector is ready or tampered
+    wifi_status - Smoke Detector - When wifi status is updated
+    battery_status - Smoke Detector - When battery status is too low
+    detection_chamber_status - Smoke Detector - When the detection chamber is dusty or clean
+    sound_test - Smoke Detector - Sound test result
+    """
 
-    device_name: str
+    is_alert: bool = False
+
+    push_type: str = ""
+    user_id: str = ""
+    user_email: str = ""
+
+    event_type: str = ""
+    event_type_text: str = ""
+    sub_type: str = ""
+    sub_type_text: str = ""
+
+    device_id: str = ""
+    home_id: str = ""
+    home_name: str = ""
+    camera_id: str = ""
+    event_id: str = ""
+
+    device_name: str = ""
+
+    _event_types = {
+        "hush": "The smoke detection is",
+        "smoke": "SMOKE IS",
+        "tampered": "The smoke detector is",
+        "wifi_status": "The wifi status is updated to:",
+        "battery_status": "The battery status is",
+        "detection_chamber_status": "The detection chamber is",
+        "sound_test": "Sound test result: "
+    }
+
+    _sub_types = {
+        "hush": {
+            0: "active",
+            1: "temporarily disabled"
+        },
+        "smoke": {
+            0: "Cleared!",
+            1: "DETECTED!! ALERT!!!!!!"
+        },
+        "tampered": {
+            0: "ready",
+            1: "TAMPERED!"
+        },
+        "wifi_status": {
+            0: "ERROR!",
+            1: "Ok"
+        },
+        "battery_status": {
+            0: "LOW!",
+            1: "VERY LOW!!!"
+        },
+        "detection_chamber_status": {
+            0: "Clean",
+            1: "DUSTY!"
+        },
+        "sound_test": {
+            0: "Ok",
+            1: "ERROR!"
+        }
+    }
 
     def __str__(self):
-        return self.push_type + " (" + self.event_type + ") from " + self.device_name + "@" + self.home_name
+        output = f"{self.event_type_text} <{self.sub_type_text}> on {self.device_name}@{self.home_name}. " \
+                 f"(Push-Type: {self.push_type})"
+        return output
 
     def __init__(self, js: json):
-        # print(js)
         if "push_type" in js:
             self.push_type = js["push_type"]
             self.user_id = js["user_id"]
             if js["push_type"] == "webhook_activation":
-                self.user_email = js ["user"]["email"]
+                self.user_email = js["user"]["email"]
                 print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
                 print("Webhook activated for user %s " % self.user_email)
             else:
                 self.event_type = js["event_type"]
+                try:
+                    self.event_type_text = self._event_types[self.event_type]
+                except KeyError:
+                    self.event_type_text = "Unknown event type"
+                self.sub_type = js["sub_type"]
+                try:
+                    self.sub_type_text = self._sub_types[self.event_type][self.sub_type]
+                except KeyError:
+                    self.sub_type_text = "Unknown event subtype"
                 self.device_id = js["device_id"]
                 self.home_id = js["home_id"]
                 self.home_name = js["home_name"]
                 self.camera_id = js["camera_id"]
                 self.event_id = js["event_id"]
-                self.sub_type = js["sub_type"]
                 if self.device_id in DEVICEMAP:
                     self.device_name = DEVICEMAP[self.device_id]
                 else:
@@ -135,6 +202,4 @@ class Event:
                 print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
                 print("Event received: %s" % self)
 
-
-
-
+                self.is_alert = True

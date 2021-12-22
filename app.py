@@ -1,4 +1,7 @@
+import datetime
 import os
+import time
+from threading import Thread
 
 from flask import Flask, request
 
@@ -21,7 +24,7 @@ try:
     # MQTT_PASS = os.environ['MQTT_PASS']
     #
     # Google Chat
-    # GCHAT_WEBHOOK_URL = os.environ['GCHAT_WEBHOOK_URL']
+    GCHAT_WEBHOOK_URL = os.environ['GCHAT_WEBHOOK_URL']
 
 except Exception as exc:
     print("Missing environment variable(s) " + str(exc))
@@ -42,9 +45,26 @@ def get_root():
 @app.route('/', methods=['POST'])
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    event = Event(request.json)
-    return "", 200
+    try:
+        event = Event(request.json)
+        # Events: https://dev.netatmo.com/apidocumentation/security#events
+        if event.is_alert:
+            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
+        #     print("Sending message to Google Chat: ")
+        return "", 200
+    except TypeError:
+        return "Error in parsing json!", 400
 
+
+# Login in the background
+def login_threaded_task():
+    time.sleep(1)
+    api.login()
+
+
+thread = Thread(target=login_threaded_task)
+thread.daemon = True
+thread.start()
 
 if __name__ == "__main__":
     app.run()
