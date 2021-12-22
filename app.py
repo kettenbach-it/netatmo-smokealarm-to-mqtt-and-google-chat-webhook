@@ -3,6 +3,7 @@ import os
 import time
 from threading import Thread
 
+import requests
 from flask import Flask, request
 
 from netatmo import Netatmo, Event
@@ -17,19 +18,20 @@ try:
     USERNAME = os.environ['USERNAME']
     PASSWORD = os.environ['PASSWORD']
 
+    # Google Chat
+    GCHAT_WEBHOOK_URL = os.environ['GCHAT_WEBHOOK_URL']
+
     # MQTT
     # MQTT_SERVER = os.environ['MQTT_SERVER']
     # MQTT_CLIENTID = os.environ['MQTT_CLIENTID']
     # MQTT_USER = os.environ['MQTT_USER']
     # MQTT_PASS = os.environ['MQTT_PASS']
     #
-    # Google Chat
-    GCHAT_WEBHOOK_URL = os.environ['GCHAT_WEBHOOK_URL']
+
 
 except Exception as exc:
     print("Missing environment variable(s) " + str(exc))
     exit(-1)
-
 
 api: Netatmo = Netatmo(CLIENT_ID, CLIENT_SECRET, USERNAME, PASSWORD, MY_URL)
 
@@ -49,11 +51,28 @@ def webhook():
         event = Event(request.json)
         # Events: https://dev.netatmo.com/apidocumentation/security#events
         if event.is_alert:
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
-        #     print("Sending message to Google Chat: ")
+            header = {
+                'title': f"{event.device_name}@{event.home_name} - Smoke Detector Event",
+                'subtitle': "At: " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            widget = {'textParagraph': {
+                'text': f"<b>{event.event_type_text} {event.sub_type_text}</b> on "
+                        f"{event.device_name}@{event.home_name}"}}
+            try:
+                response = requests.post(GCHAT_WEBHOOK_URL, json={
+                    'cards': [
+                        {
+                            'header': header,
+                            'sections': [{'widgets': [widget]}],
+                        }
+                    ]
+                })
+            except TypeError as error:
+                print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
+                print(f"Error: {str(error)}")
         return "", 200
-    except TypeError:
-        return "Error in parsing json!", 400
+    except Exception as error:
+        return f"Error in parsing json! {str(error)}", 400
 
 
 # Login in the background

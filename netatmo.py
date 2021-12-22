@@ -132,7 +132,7 @@ class Event:
         "wifi_status": "The wifi status is updated to:",
         "battery_status": "The battery status is",
         "detection_chamber_status": "The detection chamber is",
-        "sound_test": "Sound test result: "
+        "sound_test": "Sound test result:"
     }
 
     _sub_types = {
