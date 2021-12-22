@@ -72,6 +72,29 @@ def webhook():
                 print(f"Error: {str(error)}")
         return "", 200
     except Exception as error:
+        header = {
+            'title': "Unknown Smoke Detector Event",
+            'subtitle': "At: " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        widget = {
+            'textParagraph':
+                {
+                    'text': f"Please check the logs of the API!\n The error was:\n {str(error)}\n"
+                            f"The request payload was: {str(request.json)}"
+                }
+        }
+        try:
+            response = requests.post(GCHAT_WEBHOOK_URL, json={
+                'cards': [
+                    {
+                        'header': header,
+                        'sections': [{'widgets': [widget]}],
+                    }
+                ]
+            })
+        except TypeError as error:
+            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
+            print(f"Error: {str(error)}")
         return f"Error in parsing json! {str(error)}", 400
 
 
