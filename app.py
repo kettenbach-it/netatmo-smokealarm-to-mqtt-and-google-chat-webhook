@@ -105,9 +105,9 @@ def webhook():
                     }
                 ]
             })
-        except TypeError as error:
+        except TypeError as response_error:
             print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
-            print(f"Error: {str(error)}")
+            print(f"Error: {str(response_error)}")
         return f"Error in parsing json! {str(error)}", 400
 
 
