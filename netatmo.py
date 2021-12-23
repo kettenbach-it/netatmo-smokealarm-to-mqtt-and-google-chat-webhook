@@ -4,7 +4,10 @@ import os
 
 import requests
 
-DEVICEMAP = json.loads(os.environ.get("DEVICEMAP"))
+try:
+    DEVICEMAP = json.loads(os.environ.get("DEVICEMAP"))
+except TypeError as error:
+    DEVICEMAP= {}
 
 
 class Token:
