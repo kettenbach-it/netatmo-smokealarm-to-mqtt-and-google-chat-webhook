@@ -1,7 +1,9 @@
 import datetime
+import json
 import os
 import time
 from threading import Thread
+import paho.mqtt.client as mqtt
 
 import requests
 from flask import Flask, request
@@ -22,19 +24,22 @@ try:
     GCHAT_WEBHOOK_URL = os.environ['GCHAT_WEBHOOK_URL']
 
     # MQTT
-    # MQTT_SERVER = os.environ['MQTT_SERVER']
-    # MQTT_CLIENTID = os.environ['MQTT_CLIENTID']
-    # MQTT_USER = os.environ['MQTT_USER']
-    # MQTT_PASS = os.environ['MQTT_PASS']
-    #
-
+    MQTT_SERVER = os.environ['MQTT_SERVER']
+    MQTT_CLIENTID = os.environ['MQTT_CLIENTID']
+    MQTT_USER = os.environ['MQTT_USER']
+    MQTT_PASS = os.environ['MQTT_PASS']
+    MQTT_TOPIC = os.environ['MQTT_TOPIC']
 
 except Exception as exc:
     print("Missing environment variable(s) " + str(exc))
     exit(-1)
 
-api: Netatmo = Netatmo(CLIENT_ID, CLIENT_SECRET, USERNAME, PASSWORD, MY_URL)
 
+api: Netatmo = Netatmo(CLIENT_ID, CLIENT_SECRET, USERNAME, PASSWORD, MY_URL)
+mqtt_client = mqtt.Client(client_id=CLIENT_ID)
+mqtt_client.username_pw_set(username=MQTT_USER, password=MQTT_PASS)
+mqtt_client.connect(MQTT_SERVER, port=1883)
+mqtt_client.publish(MQTT_TOPIC + "LAST_START_DATETIME", payload=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 app = Flask(__name__)
 
 
@@ -51,13 +56,21 @@ def webhook():
         event = Event(request.json)
         # Events: https://dev.netatmo.com/apidocumentation/security#events
         if event.is_alert:
+            # Publish to MQTT
+            mqtt_client.publish(MQTT_TOPIC + "LAST_EVENT_DATETIME",
+                                payload=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            mqtt_client.publish(MQTT_TOPIC + "LAST_EVENT_PAYLOAD", payload=event.json_dumps())
+            if event.is_severe:
+                mqtt_client.publish(MQTT_TOPIC + "ALERT", 1)
+
+            # Send to Google Chat
             header = {
                 'title': f"{event.device_name}@{event.home_name} - Smoke Detector Event",
                 'subtitle': "At: " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
             widget = {'textParagraph': {
                 'text': f"<b>{event.event_type_text} {event.sub_type_text}</b> on "
-                        f"{event.device_name}@{event.home_name}"}}
+                        f"{event.device_name}@{event.home_name} at {event.datetime.strftime('%Y-%m-%d %H:%M:%S')}"}}
             try:
                 response = requests.post(GCHAT_WEBHOOK_URL, json={
                     'cards': [

@@ -107,6 +107,7 @@ class Event:
     """
 
     is_alert: bool = False
+    is_severe: bool = False
 
     push_type: str = ""
     user_id: str = ""
@@ -124,6 +125,8 @@ class Event:
     event_id: str = ""
 
     device_name: str = ""
+
+    datetime: datetime.datetime
 
     _event_types = {
         "hush": "The smoke detection is",
@@ -171,10 +174,28 @@ class Event:
                  f"(Push-Type: {self.push_type})"
         return output
 
+    def json_dumps(self):
+        return json.dumps({
+            "event_id": self.event_id,
+            "is_severe": self.is_severe,
+            "push_type": self.push_type,
+            "user_id": self.user_id,
+            "user_email": self.user_email,
+            "event_type": self.event_type,
+            "message": self.event_type_text + " " + self.sub_type_text + " on " + self.device_name+"@"+self.home_name,
+            "sub_type": self.sub_type,
+            "device_id": self.device_id,
+            "device_name": self.device_name,
+            "home_id": self.home_id,
+            "home_name": self.home_name,
+            "datime": self.datetime.strftime("%Y-%m-%d %H:%M:%S")
+        })
+
     def __init__(self, js: json):
         if "push_type" in js:
             self.push_type = js["push_type"]
             self.user_id = js["user_id"]
+            self.datetime = datetime.datetime.now()
             if js["push_type"] == "webhook_activation":
                 self.user_email = js["user"]["email"]
                 print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
@@ -203,3 +224,5 @@ class Event:
                 print("Event received: %s" % self)
 
                 self.is_alert = True
+                if self.event_type == "smoke" and self.sub_type == "1":
+                    self.is_severe = True
