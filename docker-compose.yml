@@ -1,0 +1,8 @@
+# docker buildx bake --set "*.platform=linux/amd64" --push -f docker-compose.yml
+
+version: "3.7"
+
+services:
+  netatmo-api:
+    build: .
+    image: eu.gcr.io/kettenbach-it/netatmo-api:1.0.0

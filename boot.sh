@@ -1,2 +1,2 @@
 #!/bin/sh
-exec gunicorn -b 0.0.0.0 app:app
+exec gunicorn -c gunicorn_config.py app:app

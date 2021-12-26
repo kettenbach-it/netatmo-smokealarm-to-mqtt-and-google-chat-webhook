@@ -7,10 +7,11 @@ import requests
 try:
     DEVICEMAP = json.loads(os.environ.get("DEVICEMAP"))
 except TypeError as error:
-    DEVICEMAP= {}
+    DEVICEMAP = {}
 
 
 class Token:
+    # For a HA ready version, this token needs to be stored in redis
     access_token: str
     refresh_token: str
     expires_in: int
@@ -63,7 +64,7 @@ class Netatmo:
         }).json()
         self._token = Token(js["access_token"], js["refresh_token"], js["expires_in"])
         print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
-        print("Refreshed token valid until %s" % self._token.expire_date.strftime("%Y-%m-%d %H:%M:%S"))
+        print("Refreshed token valid until %s" % self._token.expire_date.strftime("%Y-%m-%d %H:%M:%S"), flush=True)
 
     def login(self) -> Token:
         if not self._logged_in:
@@ -79,7 +80,8 @@ class Netatmo:
             self._add_webhook(self.url)
             self._logged_in = True
             print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
-            print("Logged in and got token valid until %s" % self._token.expire_date.strftime("%Y-%m-%d %H:%M:%S"))
+            print("Logged in and got token valid until %s" % self._token.expire_date.strftime("%Y-%m-%d %H:%M:%S"),
+                  flush=True)
             return self._token
         else:
             return self.get_token()
@@ -89,11 +91,11 @@ class Netatmo:
         request = requests.get("https://api.netatmo.com/api/addwebhook?url=%s/webhook" % url,
                                headers={'Authorization': 'Bearer ' + self.get_token().access_token})
         if request.status_code != 200:
-            print("Error setting webhook! " + request.json())
+            print("Error setting webhook! " + request.json(), flush=True)
         else:
             js = request.json()
             if js["status"] != "ok":
-                print("Error setting webhook!")
+                print("Error setting webhook!", flush=True)
 
 
 class Event:
@@ -185,7 +187,7 @@ class Event:
             "user_id": self.user_id,
             "user_email": self.user_email,
             "event_type": self.event_type,
-            "message": self.event_type_text + " " + self.sub_type_text + " on " + self.device_name+"@"+self.home_name,
+            "message": self.event_type_text + " " + self.sub_type_text + " on " + self.device_name + "@" + self.home_name,
             "sub_type": self.sub_type,
             "device_id": self.device_id,
             "device_name": self.device_name,
@@ -202,7 +204,7 @@ class Event:
             if js["push_type"] == "webhook_activation":
                 self.user_email = js["user"]["email"]
                 print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
-                print("Webhook activated for user %s " % self.user_email)
+                print(f"Webhook activated for user {self.user_email}", flush=True)
             else:
                 self.event_type = js["event_type"]
                 try:
@@ -224,7 +226,7 @@ class Event:
                 else:
                     self.device_name = self.device_id
                 print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), end=": ")
-                print("Event received: %s" % self)
+                print(f"Event received: {self}", flush=True)
 
                 self.is_alert = True
                 if self.event_type == "smoke" and self.sub_type == "1":

@@ -1,0 +1,56 @@
+---
+# Redirect to https
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: netatmo-api-redirect-https
+  namespace: netatmo-api
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: netatmo-api-extern-http
+  namespace: netatmo-api
+  labels:
+    app: netatmo-api
+    app.kubernetes.io/name: netatmo-api
+    app.kubernetes.io/instance: netatmo-api
+spec:
+  entryPoints:
+    - http
+  routes:
+  - match: Host(`netatmo.ktnbch.de`) # Hostname to match
+    kind: Rule
+    middlewares:
+      - name: netatmo-api-redirect-https
+        namespace: netatmo-api
+    services:
+    - name: netatmo-api
+      port: 8000
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: netatmo-api-extern-https
+  namespace: netatmo-api
+  labels:
+    app: netatmo-api
+    app.kubernetes.io/name: netatmo-api
+    app.kubernetes.io/instance: netatmo-api
+spec:
+  entryPoints:
+    - https
+  tls: {} # just use the wildcard certificate matching per domain
+  routes:
+  - match: Host(`netatmo.ktnbch.de`) # Hostname to match
+    kind: Rule
+    services:
+    - name: netatmo-api
+      port: 8000

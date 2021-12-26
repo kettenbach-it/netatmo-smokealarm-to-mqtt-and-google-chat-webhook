@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netatmo-api
+  namespace: netatmo-api
+  labels:
+    app: netatmo-api
+    app.kubernetes.io/name: netatmo-api
+    app.kubernetes.io/instance: netatmo-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: netatmo-api
+  template:
+    metadata:
+      labels:
+        app: netatmo-api
+        app.kubernetes.io/name: netatmo-api
+        app.kubernetes.io/instance: netatmo-api
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: "kubernetes.io/hostname"
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - netatmo-api
+      containers:
+        - name: netatmo-api
+          imagePullPolicy: Always
+          image: eu.gcr.io/kettenbach-it/netatmo-api:1.0.0
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: netatmo-api-secrets
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
